@@ -1,0 +1,35 @@
+# Vim swap files
+*.swp
+*.swo
+*~
+
+# IDE settings
+.idea/
+.vscode/
+*.iml
+project.lock
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jenkins
+jenkins.*.log
+**/.jenkins/
+
+# Node.js (if applicable)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Docker
+docker-compose.override.yml
+
+# Build output
+build/
+dist/
+
+# Environment files
+.env
+.env.local
+.env.*.local
