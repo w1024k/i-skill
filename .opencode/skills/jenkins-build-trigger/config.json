@@ -1,7 +1,7 @@
 {
     "jenkins": {
-        "url": "http://localhost:8080",
+        "url": "https://jenkins.hcac.com.cn",
         "username": "admin",
-        "token": "1122e2e91e651a6ab9d6fb3b853b206f2b"
+        "token": "11c63f675af557b3b2dd84f6a4525f452f"
     }
 }

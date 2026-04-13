@@ -45,3 +45,4 @@ env/
 venv/
 ENV/
 *.log
+config.json

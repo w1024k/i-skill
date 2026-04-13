@@ -49,119 +49,53 @@ def get_jenkins_connection():
         server = jenkins.Jenkins(JENKINS_URL, username=JENKINS_USERNAME, password=JENKINS_TOKEN)
     else:
         server = jenkins.Jenkins(JENKINS_URL)
+
+    import requests
+
+    session = requests.Session()
+    session.verify = False  # 关闭 SSL 校验
+    # 替换底层 session（关键）
+    server._session = session
     return server
 
 
-def list_jobs(server, parent_path=''):
-    """列出所有 Pipeline 任务（包括文件夹中的任务）"""
-    try:
-        # Use get_all_jobs() to get all jobs including those in folders
-        all_jobs = server.get_all_jobs()
-        
-        pipeline_jobs = []
-        valid_colors = ['blue', 'red', 'yellow', 'green', 'grey', 'disabled', 'aborted', 'notbuilt', 'unstable']
-        
-        for job in all_jobs:
-            # job['fullname'] contains the full path like 'folder/job_name' or just 'job_name'
-            full_name = job['fullname']
-            
-            # Get job info to check color/status
-            try:
-                job_info = server.get_job_info(full_name)
-                color = job_info.get('color', '')
-                
-                if any(color.startswith(c) for c in valid_colors):
-                    pipeline_jobs.append({
-                        'name': full_name,
-                        'full_name': full_name,
-                        'color': color
-                    })
-            except Exception:
-                # If we can't get job info, try to get basic info
-                # Just add the job if we can't determine its color
-                pipeline_jobs.append({
-                    'name': full_name,
-                    'full_name': full_name,
-                    'color': ''
-                })
-        
-        return pipeline_jobs
-    except Exception:
-        # Fallback to the original method if get_all_jobs fails
-        try:
-            jobs = server.get_jobs()
-        except Exception:
-            jobs = []
-        
-        pipeline_jobs = []
-        valid_colors = ['blue', 'red', 'yellow', 'green', 'grey', 'disabled', 'aborted', 'notbuilt', 'unstable']
-        
+def list_jobs(server):
+    """
+    稳定获取 Jenkins 所有 Job（支持 Folder 递归）
+    仅使用 python-jenkins
+    """
+    result = []
+
+    def traverse_jobs(jobs, parent_path=""):
         for job in jobs:
-            full_name = job['name']
-            is_folder = '_class' in job and 'Folder' in job['_class']
-            
+            name = job["name"]
+            full_name = f"{parent_path}/{name}".strip("/")
+            display_name = job.get("displayName", name)
+
+            # 判断是否为 folder（关键点）
+            is_folder = job.get("_class", "").endswith("Folder")
+
             if is_folder:
-                # Get jobs from folder using folder info
                 try:
-                    folder_info = server.get_job_info(full_name)
-                    if 'jobs' in folder_info:
-                        for sub_job in folder_info['jobs']:
-                            sub_full_name = f"{full_name}/{sub_job['name']}"
-                            sub_color = sub_job.get('color', '')
-                            
-                            if any(sub_color.startswith(c) for c in valid_colors):
-                                pipeline_jobs.append({
-                                    'name': sub_full_name,
-                                    'full_name': sub_full_name,
-                                    'color': sub_color
-                                })
+                    folder_info = server.get_job_info(full_name, depth=1)
+                    sub_jobs = folder_info.get("jobs", [])
+                    traverse_jobs(sub_jobs, full_name)
                 except Exception:
-                    pass
-                
-                # Recursively check nested folders
-                nested_jobs = list_jobs_from_folder(server, full_name)
-                pipeline_jobs.extend(nested_jobs)
+                    # 避免单个 folder 失败影响整体
+                    continue
             else:
-                color = job.get('color', '')
-                if any(color.startswith(c) for c in valid_colors):
-                    pipeline_jobs.append({
-                        'name': full_name,
-                        'full_name': full_name,
-                        'color': color
-                    })
-        
-        return pipeline_jobs
+                result.append({
+                    "name": name,
+                    "full_name": full_name,
+                    "display_name": display_name,
+                    "color": job.get("color", "")
+                })
 
-def list_jobs_from_folder(server, parent_path):
-    """辅助函数：从特定父路径列出任务"""
-    try:
-        # Get folder info to find sub-jobs
-        folder_info = server.get_job_info(parent_path)
-        pipeline_jobs = []
-        valid_colors = ['blue', 'red', 'yellow', 'green', 'grey', 'disabled', 'aborted', 'notbuilt', 'unstable']
-        
-        if 'jobs' in folder_info:
-            for sub_job in folder_info['jobs']:
-                full_name = f"{parent_path}/{sub_job['name']}"
-                is_folder = '_class' in sub_job and 'Folder' in sub_job['_class']
-                
-                if is_folder:
-                    # Recursive call for nested folders
-                    nested_jobs = list_jobs_from_folder(server, full_name)
-                    pipeline_jobs.extend(nested_jobs)
-                else:
-                    color = sub_job.get('color', '')
-                    if any(color.startswith(c) for c in valid_colors):
-                        pipeline_jobs.append({
-                            'name': full_name,
-                            'full_name': full_name,
-                            'color': color
-                        })
-        
-        return pipeline_jobs
-    except Exception:
-        return []
+    # 入口：只请求一次顶层
+    root_jobs = server.get_jobs()
+    traverse_jobs(root_jobs)
 
+    return result
 
 def get_job_params(server, job_name):
     """获取任务的构建参数"""
@@ -237,7 +171,7 @@ def build_job(server, job_name, parameters=None, use_token=True):
             'success': True,
             'job_name': job_name,
             'build_number': build_number,
-            'url': f"{JENKINS_URL}/{url_job_name}/{build_number}/"
+            'url': f"{JENKINS_URL}/{url_job_name}"
         }
     except Exception as e:
         # If the standard approach fails, return error
@@ -282,7 +216,11 @@ def main():
             else:
                 print(f"找到 {len(jobs)} 个构建任务:\n")
                 for i, job in enumerate(jobs, 1):
-                    print(f"  {i}. {job['name']}")
+                    full_path = job.get('full_name', job['name'])
+                    display_name = job.get('display_name', job['name'])
+                    print(f"  {i}. {full_path}")
+                    if display_name != job.get('name', ''):
+                        print(f"     显示名称：{display_name}")
     
     elif args.command == 'params':
         if not args.job:

@@ -70,6 +70,7 @@ description: Jenkins 构建任务触发器。当你需要触发 Jenkins Pipeline
 
 ### 4. 最终确认
 
+构建前,必须需要用户进行追踪确认，确保用户确认构建参数是否正确。
 在向用户展示构建摘要时，必须包含以下信息：
 
 ```
@@ -85,7 +86,14 @@ description: Jenkins 构建任务触发器。当你需要触发 Jenkins Pipeline
 
 ### 5. 执行构建
 
-**调用预置脚本执行：**
+## 脚本位置
+
+**脚本路径（相对于 skill 目录）：**
+```
+scripts/run_build.py
+```
+
+**调用方式：**
 ```bash
 python scripts/run_build.py build \
   --job "[任务名称]" \
@@ -93,15 +101,15 @@ python scripts/run_build.py build \
   --param "[参数 2]" "[值 2]"
 ```
 
+**注意事项：**
+- 脚本会自动从同级目录读取 `config.json` 配置文件
+- 调用脚本时，工作目录应设置为 skill 所在目录
+
 **输出结果处理：**
 - 成功：显示构建编号和访问链接
 - 失败：显示错误原因并建议排查方向
 
-## 脚本位置
 
-```
-skills/jenkins-build-trigger/scripts/run_build.py
-```
 
 ## 配置文件配置
 
