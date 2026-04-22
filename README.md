@@ -1,8 +1,6 @@
 # Skill 使用指南
 
 
-
-
 ## 1. 什么是 Skill
 
 
@@ -78,7 +76,7 @@ https://docs.trae.cn/ide/skills
 
 ### 实战示例：Jenkins Build Trigger Skill
 
-我们以当前目录下的 `jenkins-build-trigger` Skill 为例进行介绍。
+以当前目录下的 `jenkins-build-trigger` Skill 为例
 
 **Skill 位置**：`.opencode/skills/jenkins-build-trigger/`
 
