@@ -1,0 +1,4 @@
+interface:
+  display_name: "Jenkins Build"
+  short_description: "List Jenkins jobs, inspect parameters, and trigger builds with confirmation."
+  default_prompt: "Use $jenkins-build to find a Jenkins job, review its parameters, and trigger the build safely."
